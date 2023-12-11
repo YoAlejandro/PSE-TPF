@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "i2cmaster.h": "c",
+        "utils.h": "c"
+    }
+}
