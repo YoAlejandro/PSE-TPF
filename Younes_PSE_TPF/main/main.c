@@ -3,7 +3,25 @@
 /* definicion de tareas (cuyo codigo fuente es externo) */
 extern int tarea_capacidad(void);
 extern int tarea_temperatura(void);
+// extern int tarea_control(void);
 
+#define CMDS_CONS 0
+#define CMDS_ESCR 1
+#define NINGUNO -1
+
+#define i2cBufferLen 32
+
+// tamaño de cada nivel de menús, para calcular número de menús
+#define TAM_NV1 (sizeof(TXT_MEN_NV1) / sizeof(TXT_MEN_NV1[0]))
+#define TAM_CON (sizeof(TXT_CMD_CON) / sizeof(TXT_CMD_CON[0]))
+#define TAM_ESC (sizeof(TXT_CMD_ESC) / sizeof(TXT_CMD_ESC[0]))
+
+// mantener registro del nivel actual, para saber a cual ir luego
+int men_nv1_act = 0;
+int men_nv2_act = NINGUNO;
+unsigned int pos_cursor = 0;
+
+// comandos de consulta
 unsigned int CMD_CON[][2] = {{Cmd_RemainingCapacityAlarm, BAT_MAH},
                              {Cmd_RemainingTimeAlarm, BAT_MINUTES},
                              {Cmd_Temperature, BAT_TENTH_K},
@@ -30,22 +48,15 @@ unsigned int CMD_CON[][2] = {{Cmd_RemainingCapacityAlarm, BAT_MAH},
                              {Cmd_DeviceName, BAT_STRING},
                              {Cmd_DeviceChemistry, BAT_STRING}};
 
+// comandos de escritura
 unsigned int CMD_ESC[][2] = {{Cmd_RemainingCapacityAlarm, 4},
                              {Cmd_RemainingTimeAlarm, 3},
                              {Cmd_CycleCount, 1}};
 
-#define CMDS_CONS 0
-#define CMDS_ESCR 1
-#define NINGUNO -1
-
-#define i2cBufferLen 32
-#define lcdBufferLen 17
-
-char i2cBuffer[i2cBufferLen];
-char lcdBuffer[lcdBufferLen];
-
+// nombre de los menús del primer nivel
 char TXT_MEN_NV1[][17] = {"COMANDO CONSULTA", "COMANDO ESCRITU."};
 
+// nombre de los menús de consulta
 char TXT_CMD_CON[][17] = {
     "ALARMA CAP. RES.", "ALARMA TIE. RES.", "TEMPERAT. ACTUAL",
     "VOLTAJE ACTUAL  ", "CORRIENTE ACTUAL", "CORRIE. PROMEDIO",
@@ -57,17 +68,9 @@ char TXT_CMD_CON[][17] = {
     "NUMERO DE SERIE ", "NOMB. FABRICANTE", "NOM. DISPOSITIVO",
     "QUIMICA         "};
 
+// nombre de los menús de escritura
 char TXT_CMD_ESC[][17] = {"ALARMA CAP. RES.", "ALARMA TIE. RES.",
                           "CICLOS DE CARGA "};
-
-int men_nv1_act = 0;
-int men_nv2_act = NINGUNO;
-
-#define TAM_NV1 (sizeof(TXT_MEN_NV1) / sizeof(TXT_MEN_NV1[0]))
-#define TAM_CON (sizeof(TXT_CMD_CON) / sizeof(TXT_CMD_CON[0]))
-#define TAM_ESC (sizeof(TXT_CMD_ESC) / sizeof(TXT_CMD_ESC[0]))
-
-unsigned int pos_cursor = 0;
 
 /**
  * Procedimiento principal que dibuja la IU,
@@ -75,40 +78,20 @@ unsigned int pos_cursor = 0;
  * y realiza la acción asociada al menú
  */
 void dibujar_menu() {
-    if (men_nv2_act == NINGUNO) {
-        liquidCrystal_setCursor(0, 0);
-        liquidCrystal_print(TXT_MEN_NV1[men_nv1_act]);
-        liquidCrystal_setCursor(11, 1);
-        imprimir_numero(men_nv1_act + 1, 2);
-        liquidCrystal_setCursor(13, 1);
-        liquidCrystal_print("/");
-        imprimir_numero(TAM_NV1, 2);
-    } else {
-        if (men_nv1_act == CMDS_CONS) {
-            liquidCrystal_setCursor(0, 0);
-            liquidCrystal_print(TXT_CMD_CON[men_nv2_act]);
-            liquidCrystal_setCursor(11, 1);
-            imprimir_numero(men_nv2_act + 1, 2);
-            liquidCrystal_setCursor(13, 1);
-            liquidCrystal_print("/");
-            imprimir_numero(TAM_CON, 2);
-        } else {
-            liquidCrystal_setCursor(0, 0);
-            liquidCrystal_print(TXT_CMD_ESC[men_nv2_act]);
-            liquidCrystal_setCursor(11, 1);
-            imprimir_numero(men_nv2_act + 1, 2);
-            liquidCrystal_setCursor(13, 1);
-            liquidCrystal_print("/");
-            imprimir_numero(TAM_ESC, 2);
-        }
+    if (men_nv2_act == NINGUNO)
+        imprimir_menu(TXT_MEN_NV1[men_nv1_act], men_nv1_act, TAM_NV1);
+    else {
+        if (men_nv1_act == CMDS_CONS)
+            imprimir_menu(TXT_CMD_CON[men_nv2_act], men_nv2_act, TAM_CON);
+        else
+            imprimir_menu(TXT_CMD_ESC[men_nv2_act], men_nv2_act, TAM_ESC);
     }
-    unsigned int accion = leer_boton();
-    switch (accion) {
-        case BTN_ABA:  // cada menú tiene una acción o nivel inferior
-            if (men_nv2_act == NINGUNO) {
+    switch (leer_boton()) {
+        case BTN_ABA:  // cada menú tiene un nivel inferior o una acción
+            if (men_nv2_act == NINGUNO) { // el menú tiene un nivel inferior
                 if (men_nv1_act == CMDS_CONS || men_nv1_act == CMDS_ESCR)
                     men_nv2_act = 0;
-            } else {
+            } else { // el menú tiene una acción
                 if (men_nv1_act == CMDS_CONS) {
                     if (men_nv2_act < 22)
                         mostrar_palabra_por_lcd(CMD_CON[men_nv2_act][0],
@@ -122,7 +105,7 @@ void dibujar_menu() {
                 }
             }
             break;
-        case BTN_IZQ:
+        case BTN_IZQ: // ir al menú de la izquierda
             if (men_nv2_act == NINGUNO) {
                 if (men_nv1_act > 0) {
                     men_nv1_act = men_nv1_act - 1;
@@ -133,7 +116,7 @@ void dibujar_menu() {
                 }
             }
             break;
-        case BTN_DER:
+        case BTN_DER: // ir al menú de la derecha
             if (men_nv2_act == NINGUNO) {
                 if (men_nv1_act < TAM_NV1 - 1) {
                     men_nv1_act = men_nv1_act + 1;
@@ -145,7 +128,7 @@ void dibujar_menu() {
                 }
             }
             break;
-        case BTN_ARR:
+        case BTN_ARR: // volver al menú del nivel superior
             if (men_nv2_act != NINGUNO) {
                 men_nv2_act = NINGUNO;
             }
@@ -153,30 +136,29 @@ void dibujar_menu() {
     }
 }
 
-/* Esperar que se pulse cualquier botón y retornar el pulsado */
-unsigned int leer_boton() {
-    unsigned int pulsado;
-    esperar_boton();
-    if (portd_bit_es_0(BTN_ABA))
-        pulsado = BTN_ABA;
-    else if (portd_bit_es_0(BTN_ARR))
-        pulsado = BTN_ARR;
-    else if (portd_bit_es_0(BTN_DER))
-        pulsado = BTN_DER;
-    else
-        pulsado = BTN_IZQ;
-    return pulsado;
+void imprimir_menu(char* menu, int nivel, unsigned int tam_nivel) {
+    sync_wait(SEM_LCD);
+    liquidCrystal_setCursor(0, 0);
+    liquidCrystal_print(menu);
+    liquidCrystal_setCursor(11, 1);
+    sync_signal(SEM_LCD);
+    imprimir_numero(nivel + 1, 2);
+    sync_wait(SEM_LCD);
+    liquidCrystal_setCursor(13, 1);
+    liquidCrystal_print("/");
+    sync_signal(SEM_LCD);
+    imprimir_numero(tam_nivel, 2);
 }
 
 unsigned int estado_anterior_aba = 0;
 unsigned int estado_anterior_arr = 0;
 unsigned int estado_anterior_der = 0;
 unsigned int estado_anterior_izq = 0;
-unsigned int timer_semaforo = 200;
-unsigned int turno_parlante = SEM_CAPACIDAD;
 
-/* Esperar que se pulse cualquier botón */
-void esperar_boton() {
+/* Esperar que se pulse cualquier botón y retornar el pulsado */
+unsigned int leer_boton() {
+    unsigned int pulsado;
+
     unsigned int alguno_pulsado = 0;
     unsigned int estado_aba = 0;
     unsigned int estado_arr = 0;
@@ -216,18 +198,17 @@ void esperar_boton() {
                 alguno_pulsado = 0;
             estado_anterior_izq = estado_izq;
         }
-        timer_semaforo = timer_semaforo - 1;
-        if (timer_semaforo == 0) {
-            timer_semaforo = 500;
-            if (turno_parlante == SEM_CAPACIDAD) {
-                turno_parlante = SEM_TEMPERATURA;
-                sync_signal(SEM_CAPACIDAD);
-            } else {
-                turno_parlante = SEM_CAPACIDAD;
-                sync_signal(SEM_TEMPERATURA);
-            }
-        }
     }
+
+    if (portd_bit_es_0(BTN_ABA))
+        pulsado = BTN_ABA;
+    else if (portd_bit_es_0(BTN_ARR))
+        pulsado = BTN_ARR;
+    else if (portd_bit_es_0(BTN_DER))
+        pulsado = BTN_DER;
+    else
+        pulsado = BTN_IZQ;
+    return pulsado;
 }
 
 /**
@@ -239,9 +220,11 @@ void imprimir_numero(unsigned int numero, unsigned int pad) {
     char lcdchar[4];
     sprintf(lcdchar, "%d", numero);
     unsigned int lon = strlen(lcdchar);
+    sync_wait(SEM_LCD);
     for (unsigned int i = 0; i < pad - lon; i++)
         liquidCrystal_print(" ");
     liquidCrystal_print(lcdchar);
+    sync_signal(SEM_LCD);
 }
 
 /**
@@ -250,10 +233,10 @@ void imprimir_numero(unsigned int numero, unsigned int pad) {
  * @param unidad: unidad de la respuesta
  */
 void mostrar_palabra_por_lcd(unsigned int comando, unsigned int unidad) {
-    liquidCrystal_clear();
-    liquidCrystal_setCursor(0, 0);
+    sync_wait(SEM_SMBUS);
     unsigned long respuesta = smbus_leer_palabra(BATERIA, comando);
-    char salida[17] = {0};
+    sync_signal(SEM_SMBUS);
+    char salida[17];
     switch (unidad) {
         case BAT_PERCENT:
             sprintf(salida, "%d \xFD", respuesta);
@@ -286,7 +269,7 @@ void mostrar_palabra_por_lcd(unsigned int comando, unsigned int unidad) {
             sprintf(salida, "%d", respuesta);
             break;
     }
-    liquidCrystal_print(salida);
+    imprimir_por_lcd(salida);
     leer_boton();
 }
 
@@ -296,16 +279,15 @@ void mostrar_palabra_por_lcd(unsigned int comando, unsigned int unidad) {
  * @param unidad: unidad de la respuesta
  */
 void mostrar_bloque_por_lcd(unsigned int comando, unsigned int unidad) {
-    liquidCrystal_clear();
-    liquidCrystal_setCursor(0, 0);
+    char i2cBuffer[i2cBufferLen];
+    sync_wait(SEM_SMBUS);
     smbus_leer_bloque(BATERIA, comando, i2cBuffer, i2cBufferLen);
-    char salida[17] = {0};
+    sync_signal(SEM_SMBUS);
+    char salida[17];
     sprintf(salida, "%s", i2cBuffer);
-    liquidCrystal_print(salida);
+    imprimir_por_lcd(salida);
     leer_boton();
 }
-
-char argumento[8];
 
 /**
  * ingresar por LCD el argumento del comando SMBus de escritura por palabra
@@ -313,13 +295,16 @@ char argumento[8];
  * @param num_digitos: número de digitos a ingresar
  */
 void ingresar_digitos_por_lcd(unsigned int comando, unsigned int num_digitos) {
+    char argumento[8];
     unsigned int dig_act;
     for (dig_act = 0; dig_act < num_digitos; dig_act++)
         argumento[dig_act] = '0';
     argumento[dig_act] = '\0';
     dig_act = 0;
     int accion = -1;
+    sync_wait(SEM_LCD);
     liquidCrystal_clear();
+    sync_signal(SEM_LCD);
     while (accion != BTN_ABA) {
         switch (accion) {
             case BTN_IZQ:  // ir a digito de la izquierda
@@ -337,30 +322,42 @@ void ingresar_digitos_por_lcd(unsigned int comando, unsigned int num_digitos) {
                     argumento[dig_act] = argumento[dig_act] + 1;
                 break;
         }
+        sync_wait(SEM_LCD);
         liquidCrystal_setCursor(0, 0);
         liquidCrystal_print(argumento);
         liquidCrystal_setCursor(dig_act, 0);
         pos_cursor = dig_act;
+        sync_signal(SEM_LCD);
         accion = leer_boton();
     }
-    unsigned long entrada = myAtoi(argumento);
+    unsigned long entrada = 0;
+    // Iterar a través de todos los digitos e ir actualizando resultado
+    for (unsigned int i = 0; argumento[i] != '\0'; ++i)
+        entrada = entrada * 10 + argumento[i] - '0';
+    sync_wait(SEM_SMBUS);
     smbus_escribir_palabra(BATERIA, comando, entrada);
+    sync_signal(SEM_SMBUS);
     sprintf(argumento, "%d", entrada);
+    imprimir_por_lcd(argumento);
+    leer_boton();
+}
+
+void imprimir_por_lcd(char* salida) {
+    sync_wait(SEM_LCD);
     liquidCrystal_clear();
     liquidCrystal_setCursor(0, 0);
-    liquidCrystal_print(argumento);
-    leer_boton();
+    liquidCrystal_print(salida);   
+    sync_signal(SEM_LCD);
 }
 
 /* main es una tarea independiente y se la utiliza como tal */
 int main(void) {
     /* inicializar semáforos */
     sync_set(SEM_CAPACIDAD, 0);
-    sync_set(SEM_TEMPERATURA, 0);
-
-    /* inicializar GPIO */
-    inicializar_portc();
-    inicializar_portd();
+    sync_set(SEM_TEMPERATURA, 1);
+    sync_set(SEM_PARLANTE, 1);
+    sync_set(SEM_SMBUS, 1);
+    sync_set(SEM_LCD, 1);
 
     /* inicializar I2C */
     levantar_pin_portc(PIN_SDA);
@@ -380,8 +377,9 @@ int main(void) {
     levantar_pin_portd(BTN_IZQ);
 
     /* creamos y ponemos a ejecutar las tareas */
-    resume(create(tarea_capacidad, 64, 30, "capa", 0));
-    resume(create(tarea_temperatura, 64, 30, "temp", 0));
+    // resume(create(tarea_control, 16, 40, "cont", 0));
+    resume(create(tarea_temperatura, 32, 30, "temp", 0));
+    resume(create(tarea_capacidad, 32, 30, "capa", 0));
 
     while (1)
         dibujar_menu();

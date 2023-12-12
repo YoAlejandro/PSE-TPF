@@ -46,12 +46,3 @@ void delay_10us_n(unsigned int n) {
     for (i = 1UL; i <= m; i++)
         ;
 }
-
-unsigned long myAtoi(char* str) {
-    unsigned long res = 0;
-
-    // Iterate through all digits and update the result
-    for (unsigned int i = 0; str[i] != '\0'; ++i)
-        res = res * 10 + str[i] - '0';
-    return res;
-}

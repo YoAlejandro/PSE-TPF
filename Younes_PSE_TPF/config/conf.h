@@ -40,4 +40,4 @@ extern	const __flash struct dentry	devtab[] ; /* one entry per device */
 /* Configuration and Size Constants */
 
 #define	NPROC	     4		/* number of user processes		*/
-#define	NSEM	     4		/* number of semaphores			*/
+#define	NSEM	     5		/* number of semaphores			*/

@@ -1,14 +1,17 @@
-# Aplicativo
+# Analizador de baterías
 
-Consiste en la utilización de la interfaz I²C del Arduino Nano para comunicarse, a través del protocolo SMBus (un subconjunto de I²C) con las baterías que cumplen el estándar Smart Battery Data Specification (SBS) mediante el uso de un chip inteligente integrado en las mismas, las cuales están presentes principalmente en computadoras portátiles tanto en formato extraíble como interno.
+El proyecto es un sistema autónomo que sirve para hacer un diagnostico detallado a las baterías de computadoras portátiles como así también modificar algunos parámetros de las mismas. Además de advertir automáticamente mediante señales sonoras y visuales de las situaciones que degradan la salud de la batería, es decir una capacidad restante muy baja y/o una temperatura muy alta.
+
+Esto es posible ya que la mayoría de las baterías cumplen con la Smart Battery Data Specification (SBS), una especificación que sigue el circuito integrado de las mismas y se encarga de almacenar datos del estado de la batería (Capacidad, Desgaste, Consumo, ...) como así también los parámetros de configuración (Voltaje de carga, Corriente de carga, Valores críticos, ...). Además dicho circuito integrado cuenta con una interfaz compatible con el protocolo SMBus mediante la cual se comunica tanto con el cargador de la batería como con la computadora portátil que la usa.
+
+Por ello es que el sistema desarrollado utiliza la interfaz I²C (de la cual SMBus es un subconjunto y por lo tanto compatible) presente en el Arduino Nano para comunicarse con el circuito integrado de la batería. El sistema permite al usuario navegar por una interfaz gráfica dibujada en una pantalla LCD utilizando 4 botones con las funciones izquierda, derecha, volver atrás/cambiar dígito y entrar. Se puede elegir ejecutar una serie de comandos de consulta como asi también de escritura, en este último caso se permite especificar los dígitos a enviar. Además un parlante avisa de manera automática si la capacidad de la batería es muy baja y/o si la temperatura de la batería es muy alta, indicando además ambas situaciones en la pantalla LCD.
 
 Utilizando el SO Xinu RTOS, se realizan de manera concurrente las siguientes tareas ordenadas por prioridad (número más alto indica mayor prioridad y mismo número indica prioridad compartida):
-- (2) *Tarea Capacidad*: Reproducir por el parlante un tono grave si la capacidad de la bateria es inferior a la de alarma almacenada en la batería y indicar dicha situación en el LCD.
-- (2) *Tarea Temperatura*: Reproducir por el parlante un tono agudo si la temperatura de la batería excede un valor fijado en el código (por defecto 27ºC) y indicar dicha situación en el LCD.
-- (1) *Tarea Menú*: Dibujar y gestionar en el LCD una IU basada en menús, su funcionamiento y los menús se describen en la sección [Funcionamiento de la IU](https://github.com/YoAlejandro/PSE-TPF?tab=readme-ov-file#funcionamiento-de-la-iu).
+- (2) *Tarea Capacidad*: Reproducir por el parlante un tono grave si la capacidad de la batería es inferior a la de alarma almacenada en la batería e indicar dicha situación en el LCD.
+- (2) *Tarea Temperatura*: Reproducir por el parlante un tono agudo si la temperatura de la batería excede un valor fijado en el código (por defecto 27ºC) e indicar dicha situación en el LCD.
+- (1) *Tarea Menú*: Dibujar y gestionar en el LCD una IU basada en menús. Su funcionamiento y los menús se describen en la sección [Funcionamiento de la IU](https://github.com/YoAlejandro/PSE-TPF?tab=readme-ov-file#funcionamiento-de-la-iu).
 
-La **Tarea Menú** implementa, además de la IU, la mayoría de los comandos definidos en la especificación SBS, los cuales fueron definidos por el SBS Forum (un foro de los principales fabricantes de baterías) en el documento
-http://sbs-forum.org/specs/sbdat110.pdf, cada comando está identificado por un número hexadecimal que se envía como un mensaje SMBus.
+La **Tarea Menú** implementa, además de la IU, la mayoría de los comandos en la especificación SBS, los cuales fueron definidos por el SBS Forum (un foro de los principales fabricantes de baterías) en el documento http://sbs-forum.org/specs/sbdat110.pdf, cada comando está identificado por un número hexadecimal que se envía como un mensaje SMBus.
 
 El diagrama de bloques del sistema es el siguiente, en donde las flechas del area *Componentes Software* indican dependencias mientras que en el area *Componentes Hardware* indican el flujo de la información:
 ![](Younes_PSE_TPF_bloques.png)
@@ -55,7 +58,7 @@ Los menús y acciones implementadas son:
 > [!IMPORTANT]
 > La especificación define más comandos de escritura, pero los mismos no fueron implementados debido al potencial riesgo de desconfigurar la batería.
 
-# Instalación
+# Hardware
 
 Se requiere:
 - 1 Arduino Nano
@@ -83,8 +86,8 @@ Las conexiones son:
 - Pin D12 de Arduino Nano a pin E de LCD
 - Pin D13 de Arduino Nano a pin RS de LCD
 - Pin K de LCD a GND de protoboard
-- Pin A de LCD a pata izquierda de resistencia
-- Pata derecha de resistencia a VCC de protoboard
+- Pin A de LCD a un extremo de la resistencia
+- El otro extremo de la resistencia a VCC de protoboard
 - Pin RW de LCD a GND de protoboard
 - Pin V0 de LCD a pin central de potenciómetro
 - Pin izquierdo de potenciómetro a GND de protoboard
@@ -95,14 +98,13 @@ Las conexiones son:
 - Pin A5 de Arduino Nano a pin SCL de la batería
 - Pin GND de la batería a GND de protoboard
 
-> [!NOTE]
-> Pata izquierda y Pata derecha se definen a gusto.
-
 > [!CAUTION]
 > Asegurarse de que los pines de la batería sean los correctos, caso contrario se corre el riesgo de que el Arduino Nano y/o los demás componentes sufran **daños irreversibles**.
 
 El circuito resultante debería ser similar al siguiente:
 ![](Younes_PSE_TPF_componentes.png)
+
+# Instalación del software
 
 Grabar en el Arduino Nano con consola abierta en el directorio *compile*:
 1. make clean

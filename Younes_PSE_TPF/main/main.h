@@ -8,12 +8,15 @@
 /* semaforos */
 #define SEM_CAPACIDAD 0
 #define SEM_TEMPERATURA 1
+#define SEM_PARLANTE 2
+#define SEM_SMBUS 3
+#define SEM_LCD 4
 
-#define PIN_PARLANTE 0b10000000
+#define PIN_PARLANTE 0b10000000 // PD7
 
 #define PIN_SDA 0b00010000  // PC4 como SDA
 #define PIN_SCL 0b00100000  // PC5 como SCL
-#define BATERIA 0b0001011   // dirección dispositivo SMBus (BQ2040)
+#define BATERIA 0b0001011   // dirección SMBus de la batería
 
 #define BTN_ARR 0b00001000  // PD3
 #define BTN_ABA 0b00000100  // PD2
@@ -22,7 +25,6 @@
 
 void dibujar_menu();
 void imprimir_numero(unsigned int numero, unsigned int pad);
-void esperar_boton();
 unsigned int leer_boton();
 void mostrar_palabra_por_lcd(unsigned int comando, unsigned int unidad);
 void mostrar_bloque_por_lcd(unsigned int comando, unsigned int unidad);
