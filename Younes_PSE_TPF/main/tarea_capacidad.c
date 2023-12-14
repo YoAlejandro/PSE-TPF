@@ -15,15 +15,22 @@
 
 extern unsigned int pos_cursor;
 
+unsigned long capacidad_restante;
+unsigned long capacidad_alarma;
+
 int tarea_capacidad(void) {
     while (1) {
+        capacidad_restante = 0;
+        capacidad_alarma = 0;
         sync_wait(SEM_CAPACIDAD);
         sleepms(4000);
         sync_wait(SEM_SMBUS);
-        unsigned long capacidad_restante =
-            smbus_leer_palabra(BATERIA, Cmd_RemainingCapacity);
-        unsigned long capacidad_alarma =
-            smbus_leer_palabra(BATERIA, Cmd_RemainingCapacityAlarm);
+        if (smbus_detectar_dispositivo(BATERIA)) {
+            capacidad_restante =
+                smbus_leer_palabra(BATERIA, Cmd_RemainingCapacity);
+            capacidad_alarma =
+                smbus_leer_palabra(BATERIA, Cmd_RemainingCapacityAlarm);
+        }
         sync_signal(SEM_SMBUS);
         if (capacidad_restante < capacidad_alarma) {
             sync_wait(SEM_LCD);

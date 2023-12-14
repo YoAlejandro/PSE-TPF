@@ -12,20 +12,24 @@
 
 #define DURACION 1000
 #define TONO 150
-#define TEMPERATURA_ALARMA 25
 
 extern unsigned int pos_cursor;
+extern unsigned int temperatura_alarma;
+
+unsigned long temperatura;
 
 int tarea_temperatura(void) {
     while (1) {
+        temperatura = 0;
         sync_wait(SEM_TEMPERATURA);
         sleepms(4000);
         sync_wait(SEM_SMBUS);
-        unsigned long temperatura =
-            smbus_leer_palabra(BATERIA, Cmd_Temperature);
+        if (smbus_detectar_dispositivo(BATERIA))
+            temperatura = smbus_leer_palabra(BATERIA, Cmd_Temperature);
         sync_signal(SEM_SMBUS);
-        temperatura = ((temperatura / 10) - 273);
-        if (temperatura > TEMPERATURA_ALARMA) {
+        if (temperatura != 0)
+            temperatura = ((temperatura / 10) - 273);
+        if (temperatura > temperatura_alarma) {
             sync_wait(SEM_LCD);
             liquidCrystal_setCursor(0, 1);
             liquidCrystal_print("TEMP. ALTA!");

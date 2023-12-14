@@ -8,6 +8,8 @@ extern int tarea_temperatura(void);
 #define CMDS_CONS 0
 #define CMDS_ESCR 1
 #define NINGUNO -1
+#define ERROR 255
+#define CAMBIAR_TEMP 255
 
 #define i2cBufferLen 32
 
@@ -20,6 +22,7 @@ extern int tarea_temperatura(void);
 int men_nv1_act = 0;
 int men_nv2_act = NINGUNO;
 unsigned int pos_cursor = 0;
+unsigned int temperatura_alarma = 30;
 
 // comandos de consulta
 unsigned int CMD_CON[][2] = {{Cmd_RemainingCapacityAlarm, BAT_MAH},
@@ -54,7 +57,8 @@ unsigned int CMD_ESC[][2] = {{Cmd_RemainingCapacityAlarm, 4},
                              {Cmd_CycleCount, 1}};
 
 // nombre de los menús del primer nivel
-char TXT_MEN_NV1[][17] = {"COMANDO CONSULTA", "COMANDO ESCRITU."};
+char TXT_MEN_NV1[][17] = {"COMANDO CONSULTA", "COMANDO ESCRITU.",
+                          "CAM. TEM. ALARMA"};
 
 // nombre de los menús de consulta
 char TXT_CMD_CON[][17] = {
@@ -88,10 +92,12 @@ void dibujar_menu() {
     }
     switch (leer_boton()) {
         case BTN_ABA:  // cada menú tiene un nivel inferior o una acción
-            if (men_nv2_act == NINGUNO) { // el menú tiene un nivel inferior
+            if (men_nv1_act == 2) {
+                ingresar_digitos_por_lcd(CAMBIAR_TEMP, 2);
+            } else if (men_nv2_act == NINGUNO) {  // el menú tiene un nivel inferior
                 if (men_nv1_act == CMDS_CONS || men_nv1_act == CMDS_ESCR)
                     men_nv2_act = 0;
-            } else { // el menú tiene una acción
+            } else {  // el menú tiene una acción
                 if (men_nv1_act == CMDS_CONS) {
                     if (men_nv2_act < 22)
                         mostrar_palabra_por_lcd(CMD_CON[men_nv2_act][0],
@@ -105,7 +111,7 @@ void dibujar_menu() {
                 }
             }
             break;
-        case BTN_IZQ: // ir al menú de la izquierda
+        case BTN_IZQ:  // ir al menú de la izquierda
             if (men_nv2_act == NINGUNO) {
                 if (men_nv1_act > 0) {
                     men_nv1_act = men_nv1_act - 1;
@@ -116,7 +122,7 @@ void dibujar_menu() {
                 }
             }
             break;
-        case BTN_DER: // ir al menú de la derecha
+        case BTN_DER:  // ir al menú de la derecha
             if (men_nv2_act == NINGUNO) {
                 if (men_nv1_act < TAM_NV1 - 1) {
                     men_nv1_act = men_nv1_act + 1;
@@ -128,7 +134,7 @@ void dibujar_menu() {
                 }
             }
             break;
-        case BTN_ARR: // volver al menú del nivel superior
+        case BTN_ARR:  // volver al menú del nivel superior
             if (men_nv2_act != NINGUNO) {
                 men_nv2_act = NINGUNO;
             }
@@ -233,8 +239,12 @@ void imprimir_numero(unsigned int numero, unsigned int pad) {
  * @param unidad: unidad de la respuesta
  */
 void mostrar_palabra_por_lcd(unsigned int comando, unsigned int unidad) {
+    unsigned long respuesta;
     sync_wait(SEM_SMBUS);
-    unsigned long respuesta = smbus_leer_palabra(BATERIA, comando);
+    if (smbus_detectar_dispositivo(BATERIA))
+        respuesta = smbus_leer_palabra(BATERIA, comando);
+    else
+        unidad = ERROR;
     sync_signal(SEM_SMBUS);
     char salida[17];
     switch (unidad) {
@@ -265,12 +275,14 @@ void mostrar_palabra_por_lcd(unsigned int comando, unsigned int unidad) {
                     "C",
                     ((respuesta / 10) - 273));
             break;
+        case ERROR:
+            sprintf(salida, "%s", "FALTA BAT.!");
+            break;
         default:
             sprintf(salida, "%d", respuesta);
             break;
     }
     imprimir_por_lcd(salida);
-    leer_boton();
 }
 
 /**
@@ -281,12 +293,17 @@ void mostrar_palabra_por_lcd(unsigned int comando, unsigned int unidad) {
 void mostrar_bloque_por_lcd(unsigned int comando, unsigned int unidad) {
     char i2cBuffer[i2cBufferLen];
     sync_wait(SEM_SMBUS);
-    smbus_leer_bloque(BATERIA, comando, i2cBuffer, i2cBufferLen);
+    if (smbus_detectar_dispositivo(BATERIA))
+        smbus_leer_bloque(BATERIA, comando, i2cBuffer, i2cBufferLen);
+    else
+        unidad = ERROR;
     sync_signal(SEM_SMBUS);
     char salida[17];
-    sprintf(salida, "%s", i2cBuffer);
+    if (unidad != ERROR)
+        sprintf(salida, "%s", i2cBuffer);
+    else
+        sprintf(salida, "%s", "FALTA BAT.!");
     imprimir_por_lcd(salida);
-    leer_boton();
 }
 
 /**
@@ -334,20 +351,34 @@ void ingresar_digitos_por_lcd(unsigned int comando, unsigned int num_digitos) {
     // Iterar a través de todos los digitos e ir actualizando resultado
     for (unsigned int i = 0; argumento[i] != '\0'; ++i)
         entrada = entrada * 10 + argumento[i] - '0';
-    sync_wait(SEM_SMBUS);
-    smbus_escribir_palabra(BATERIA, comando, entrada);
-    sync_signal(SEM_SMBUS);
-    sprintf(argumento, "%d", entrada);
+    if (comando != CAMBIAR_TEMP) {
+        sync_wait(SEM_SMBUS);
+        if (smbus_detectar_dispositivo(BATERIA))
+            smbus_escribir_palabra(BATERIA, comando, entrada);
+        else
+            num_digitos = ERROR;
+        sync_signal(SEM_SMBUS);
+    } else {
+        temperatura_alarma = entrada;
+    }
+    if (num_digitos != ERROR)
+        sprintf(argumento, "%d", entrada);
+    else
+        sprintf(argumento, "%s", "FALTA BAT.!");
     imprimir_por_lcd(argumento);
-    leer_boton();
 }
 
+/**
+ * imprimir en la primera fila del LCD el argumento
+ * @param salida: argumento a imprimir
+ */
 void imprimir_por_lcd(char* salida) {
     sync_wait(SEM_LCD);
     liquidCrystal_clear();
     liquidCrystal_setCursor(0, 0);
-    liquidCrystal_print(salida);   
+    liquidCrystal_print(salida);
     sync_signal(SEM_LCD);
+    leer_boton();
 }
 
 /* main es una tarea independiente y se la utiliza como tal */

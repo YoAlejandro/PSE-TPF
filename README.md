@@ -9,7 +9,7 @@ Por ello es que el sistema desarrollado utiliza la interfaz I²C (de la cual SMB
 Utilizando el SO Xinu RTOS, se realizan de manera concurrente las siguientes tareas ordenadas por prioridad (número más alto indica mayor prioridad y mismo número indica prioridad compartida):
 - (2) *Tarea Capacidad*: Reproducir por el parlante un tono grave si la capacidad de la batería es inferior a la de alarma almacenada en la batería e indicar dicha situación en el LCD.
 - (2) *Tarea Temperatura*: Reproducir por el parlante un tono agudo si la temperatura de la batería excede un valor fijado en el código (por defecto 27ºC) e indicar dicha situación en el LCD.
-- (1) *Tarea Menú*: Dibujar y gestionar en el LCD una IU basada en menús. Su funcionamiento y los menús se describen en la sección [Funcionamiento de la IU](https://github.com/YoAlejandro/PSE-TPF?tab=readme-ov-file#funcionamiento-de-la-iu).
+- (1) *Tarea Menú*: Dibujar y gestionar en el LCD una IU basada en menús. Su funcionamiento y los menús se describen en la sección [Funcionamiento](https://github.com/YoAlejandro/PSE-TPF?tab=readme-ov-file#funcionamiento).
 
 La **Tarea Menú** implementa, además de la IU, la mayoría de los comandos en la especificación SBS, los cuales fueron definidos por el SBS Forum (un foro de los principales fabricantes de baterías) en el documento http://sbs-forum.org/specs/sbdat110.pdf, cada comando está identificado por un número hexadecimal que se envía como un mensaje SMBus.
 
@@ -17,7 +17,10 @@ El diagrama de bloques del sistema es el siguiente, en donde las flechas del are
 ![](Younes_PSE_TPF_bloques.png)
 Nota: hay flechas en distinto color para poder diferenciarlas mejor, el color no tiene ningún significado especial.
 
-## Funcionamiento de la IU
+## Funcionamiento
+
+Explicación detallada del funcionamiento:
+https://youtu.be/Qk1u2A5ky6o
 
 La IU consta de una serie de menús ordenados por niveles. Presionando los pulsadores *izquierda* y *derecha* es posible desplazarse entre los menús de un nivel determinado mientras que presionando el pulsador *arriba* se asciende al nivel anterior y presionando el pulsador *abajo* se desciende al siguiente nivel de la opción actual o bien se ejecuta la acción asignada en el caso de no disponer de un siguiente nivel.
 
