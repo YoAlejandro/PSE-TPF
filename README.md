@@ -8,7 +8,7 @@ Por ello es que el sistema desarrollado utiliza la interfaz I²C (de la cual SMB
 
 Utilizando el SO Xinu RTOS, se realizan de manera concurrente las siguientes tareas ordenadas por prioridad (número más alto indica mayor prioridad y mismo número indica prioridad compartida):
 - (2) *Tarea Capacidad*: Reproducir por el parlante un tono grave si la capacidad de la batería es inferior a la de alarma almacenada en la batería e indicar dicha situación en el LCD.
-- (2) *Tarea Temperatura*: Reproducir por el parlante un tono agudo si la temperatura de la batería excede un valor fijado en el código (por defecto 27ºC) e indicar dicha situación en el LCD.
+- (2) *Tarea Temperatura*: Reproducir por el parlante un tono agudo si la temperatura de la batería excede un valor fijado en el código (por defecto 30ºC) e indicar dicha situación en el LCD.
 - (1) *Tarea Menú*: Dibujar y gestionar en el LCD una IU basada en menús. Su funcionamiento y los menús se describen en la sección [Funcionamiento](https://github.com/YoAlejandro/PSE-TPF?tab=readme-ov-file#funcionamiento).
 
 La **Tarea Menú** implementa, además de la IU, la mayoría de los comandos en la especificación SBS, los cuales fueron definidos por el SBS Forum (un foro de los principales fabricantes de baterías) en el documento http://sbs-forum.org/specs/sbdat110.pdf, cada comando está identificado por un número hexadecimal que se envía como un mensaje SMBus.
@@ -57,6 +57,7 @@ Los menús y acciones implementadas son:
 2. Comandos de escritura
     - Alarma de capacidad restante
     - Alarma de tiempo restante
+3. Cambiar temperatura de alarma
 
 > [!IMPORTANT]
 > La especificación define más comandos de escritura, pero los mismos no fueron implementados debido al potencial riesgo de desconfigurar la batería.
